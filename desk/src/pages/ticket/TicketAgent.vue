@@ -497,7 +497,7 @@ async function handleTransfer(selectedEmailIds: string[]) {
       showTransferDialog.value = false;
       
       // Navigate to tickets list (stay in HD)
-      router.push({ name: "Tickets" });
+      router.push({ name: "TicketsAgent" });
     }
   } catch (error) {
     console.error("Error transferring to CRM:", error);

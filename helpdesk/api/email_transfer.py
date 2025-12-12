@@ -219,36 +219,125 @@ def transfer_to_crm(ticket_name, communication_ids=None, delete_source=True):
 			try:
 				contact = frappe.get_doc("Contact", ticket.contact)
 				if contact.get("first_name") or contact.get("last_name"):
-					first = contact.get('first_name') or ''
-					last = contact.get('last_name') or ''
-					customer_name = f"{first} {last}".strip()
+					first = (contact.get('first_name') or '').strip()
+					last = (contact.get('last_name') or '').strip()
+					# Filter out system names
+					if first.lower() not in ["administrator", "admin"] and last.lower() not in ["administrator", "admin"]:
+						customer_name = f"{first} {last}".strip()
 				if not customer_name and contact.get("full_name"):
-					customer_name = contact.full_name
+					full_name = contact.full_name.strip()
+					# Filter out if full_name is "Administrator"
+					if full_name.lower() not in ["administrator", "admin"]:
+						customer_name = full_name
 			except Exception as e:
 				frappe.log_error(f"Error fetching contact {ticket.contact}: {str(e)}")
 		
-		# If no name from contact, try to get from ticket
+		# If no name from contact, try to get from ticket (but filter out system names)
 		if not customer_name and ticket.get("raised_by"):
-			# Extract name from email if possible
-			customer_name = ticket.raised_by.split("@")[0] if "@" in ticket.raised_by else ticket.raised_by
+			raised_by = ticket.raised_by
+			if "@" in raised_by:
+				email_name = raised_by.split("@")[0]
+				# Only use if it's not a system name
+				if email_name.lower() not in ["administrator", "admin", "noreply", "support", "sales", "info"]:
+					customer_name = email_name
+			else:
+				# Not an email, but check if it's a system name
+				if raised_by.lower() not in ["administrator", "admin"]:
+					customer_name = raised_by
 		
-		# Extract customer information
-		customer_email = ticket.get("raised_by")
+		# Get all communications FIRST to extract actual customer email
+		all_communications = get_communications_for_transfer("HD Ticket", ticket_name)
+		
+		# Extract customer email from communications (prefer customer email over system emails)
+		customer_email = None
+		if all_communications:
+			# Try to extract customer email from communications (sender or recipient)
+			for comm in all_communications:
+				# Get sender email (customer)
+				sender = comm.get("sender", "")
+				if sender and "@" in sender:
+					sender_lower = sender.lower()
+					# Skip system/internal emails
+					if (not sender_lower.endswith("@cozycornerpatios.com") and 
+						not sender_lower.endswith("@zipcushions.com") and
+						"administrator" not in sender_lower and
+						"admin" not in sender_lower and
+						"noreply" not in sender_lower):
+						customer_email = sender
+						break
+				
+				# Also check recipients for customer email
+				recipients = comm.get("recipients", "")
+				if recipients:
+					extracted = extract_customer_email(None, recipients)
+					if extracted:
+						customer_email = extracted
+						break
+		
+		# Fallback to ticket.raised_by if no customer email found in communications
+		if not customer_email:
+			raised_by = ticket.get("raised_by", "")
+			if raised_by and "@" in raised_by:
+				raised_by_lower = raised_by.lower()
+				# Only use if it's not a system email
+				if (not raised_by_lower.endswith("@cozycornerpatios.com") and 
+					not raised_by_lower.endswith("@zipcushions.com") and
+					"administrator" not in raised_by_lower and
+					"admin" not in raised_by_lower):
+					customer_email = raised_by
+		
+		# CRITICAL: If we don't have a valid customer email, we cannot create a lead
+		# Throw an error instead of creating a lead with placeholder email
+		if not customer_email:
+			frappe.throw(_("Cannot transfer ticket: No valid customer email found in communications or ticket. Please ensure the ticket has a customer email address."))
+		
+		# Additional validation: Don't allow system emails
+		if customer_email:
+			customer_email_lower = customer_email.lower()
+			if (customer_email_lower.endswith("@cozycornerpatios.com") or 
+				customer_email_lower.endswith("@zipcushions.com") or
+				"administrator" in customer_email_lower or
+				"admin@" in customer_email_lower):
+				frappe.throw(_("Cannot transfer ticket: Customer email appears to be a system email. Please ensure the ticket has a valid customer email address."))
+		
 		customer_phone = ticket.get("contact_number")
 		
-		# Get all communications to extract email if missing
-		all_communications = get_communications_for_transfer("HD Ticket", ticket_name)
-		if not customer_email and all_communications:
-			# Try to extract from first communication
-			first_comm = all_communications[0]
-			customer_email = extract_customer_email(first_comm.get("sender"), first_comm.get("recipients"))
+		# CRITICAL: Check if a CRM Lead already exists with this email
+		# If it exists, use that lead instead of creating a new one
+		existing_lead = None
+		if customer_email:
+			existing_lead = frappe.db.get_value("CRM Lead", {"email": customer_email}, "name")
 		
-		# If still no email, generate a placeholder
-		if not customer_email:
-			customer_email = f"transferred-{ticket_name}@example.com"
-		
-		# Parse name into first_name and last_name
-		first_name, last_name = parse_name_into_first_last(customer_name)
+		# Parse name into first_name and last_name (only if we don't have existing lead)
+		# If we have existing lead, we'll use its name
+		if not existing_lead:
+			# Extract name from customer_email if customer_name is invalid
+			if not customer_name or customer_name.lower() in ["administrator", "admin", ""]:
+				# Try to extract from email
+				if customer_email and "@" in customer_email:
+					email_name = customer_email.split("@")[0]
+					# Only use if it's not a system name
+					if email_name.lower() not in ["administrator", "admin", "noreply", "support", "sales", "info"]:
+						customer_name = email_name
+			
+			first_name, last_name = parse_name_into_first_last(customer_name)
+			
+			# CRITICAL: Final validation - ensure first_name and last_name are not "Administrator"
+			if first_name and first_name.lower() in ["administrator", "admin"]:
+				first_name = ""
+			if last_name and last_name.lower() in ["administrator", "admin"]:
+				last_name = ""
+			
+			# If both are empty after filtering, try to extract from email again
+			if not first_name and not last_name and customer_email and "@" in customer_email:
+				email_name = customer_email.split("@")[0]
+				if email_name.lower() not in ["administrator", "admin", "noreply", "support", "sales", "info", ""]:
+					first_name = email_name.title()
+		else:
+			# Get name from existing lead
+			existing_lead_doc = frappe.get_doc("CRM Lead", existing_lead)
+			first_name = existing_lead_doc.get("first_name") or ""
+			last_name = existing_lead_doc.get("last_name") or ""
 		
 		# Get selected communications
 		selected_communications = []
@@ -262,55 +351,117 @@ def transfer_to_crm(ticket_name, communication_ids=None, delete_source=True):
 		# Create transfer notes
 		transfer_notes = create_transfer_notes(ticket, selected_communications, all_communications)
 		
-		# Create CRM Lead with field mapping and fallbacks
-		lead = frappe.new_doc("CRM Lead")
-		if first_name:
-			lead.first_name = first_name
-		if last_name:
-			lead.last_name = last_name
-		
-		# Email fallback: email -> email_id
-		if customer_email:
-			# Try email field first
-			try:
-				lead.email = customer_email
-			except:
-				# Fallback to email_id
-				lead.email_id = customer_email
-		
-		# Phone fallback: mobile_no -> phone
-		if customer_phone:
-			# Try mobile_no field first
-			try:
-				lead.mobile_no = customer_phone
-			except:
-				# Fallback to phone
-				lead.phone = customer_phone
-		
-		lead.status = "New"
-		
-		# Copy custom_reply_email_alias if it exists on the Ticket
-		if ticket.get("custom_reply_email_alias"):
-			lead.custom_reply_email_alias = ticket.custom_reply_email_alias
-		
-		# Set source - create "Support Transfer" if it doesn't exist
-		source_name = "Support Transfer"
-		if not frappe.db.exists("CRM Lead Source", source_name):
-			try:
-				frappe.get_doc({
-					"doctype": "CRM Lead Source",
-					"source_name": source_name,
-				}).insert(ignore_permissions=True)
-			except Exception as e:
-				frappe.log_error(f"Error creating CRM Lead Source '{source_name}': {str(e)}")
-				# Continue without source if creation fails
-				source_name = None
-		
-		if source_name:
-			lead.source = source_name
-		
-		lead.notes = transfer_notes
-		lead.insert(ignore_permissions=True)
+		# Use existing lead or create new one
+		if existing_lead:
+			# Use existing lead
+			lead = frappe.get_doc("CRM Lead", existing_lead)
+			# Update notes to include transfer info
+			existing_notes = lead.get("notes") or ""
+			if transfer_notes not in existing_notes:
+				lead.notes = f"{existing_notes}\n\n{transfer_notes}".strip() if existing_notes else transfer_notes
+			lead.save(ignore_permissions=True)
+			frappe.log_error(
+				f"Using existing CRM Lead {existing_lead} for email {customer_email}",
+				"Transfer to Existing Lead"
+			)
+		else:
+			# Create new CRM Lead with field mapping and fallbacks
+			lead = frappe.new_doc("CRM Lead")
+			
+			# CRITICAL: Final check - do not set "Administrator" as name
+			# Only set name if we have valid customer info (not "Administrator" or empty)
+			if first_name and first_name.lower() not in ["administrator", "admin", ""]:
+				lead.first_name = first_name
+			if last_name and last_name.lower() not in ["administrator", "admin", ""]:
+				lead.last_name = last_name
+			
+			# If no valid name after all checks, try to extract from email one more time
+			if not lead.first_name:
+				if customer_email and "@" in customer_email:
+					email_name = customer_email.split("@")[0].strip()
+					# Only use if it's not a system email and not empty
+					if (email_name and 
+						email_name.lower() not in ["administrator", "admin", "noreply", "support", "sales", "info", ""]):
+						lead.first_name = email_name.title()
+			
+			# If still no name, use a generic placeholder that's not "Administrator"
+			if not lead.first_name:
+				# Use email prefix or "Customer" as fallback
+				if customer_email and "@" in customer_email:
+					email_prefix = customer_email.split("@")[0]
+					if email_prefix and email_prefix.lower() not in ["administrator", "admin"]:
+						lead.first_name = email_prefix.title()
+					else:
+						lead.first_name = "Customer"  # Generic fallback, not "Administrator"
+				else:
+					lead.first_name = "Customer"  # Generic fallback, not "Administrator"
+			
+			# Email fallback: email -> email_id
+			if customer_email:
+				# Skip if it's a system/internal email
+				if customer_email.lower() not in ["administrator@cozycornerpatios.com", "administrator@zipcushions.com", "admin@cozycornerpatios.com", "admin@zipcushions.com"]:
+					# Try email field first
+					try:
+						lead.email = customer_email
+					except:
+						# Fallback to email_id
+						lead.email_id = customer_email
+			
+			# Phone fallback: mobile_no -> phone
+			if customer_phone:
+				# Try mobile_no field first
+				try:
+					lead.mobile_no = customer_phone
+				except:
+					# Fallback to phone
+					lead.phone = customer_phone
+			
+			lead.status = "New"
+			
+			# Copy custom_reply_email_alias if it exists on the Ticket
+			if ticket.get("custom_reply_email_alias"):
+				lead.custom_reply_email_alias = ticket.custom_reply_email_alias
+			
+			# Set source - create "Support Transfer" if it doesn't exist
+			source_name = "Support Transfer"
+			if not frappe.db.exists("CRM Lead Source", source_name):
+				try:
+					frappe.get_doc({
+						"doctype": "CRM Lead Source",
+						"source_name": source_name,
+					}).insert(ignore_permissions=True)
+				except Exception as e:
+					frappe.log_error(f"Error creating CRM Lead Source '{source_name}': {str(e)}")
+					# Continue without source if creation fails
+					source_name = None
+			
+			if source_name:
+				lead.source = source_name
+			
+			lead.notes = transfer_notes
+			
+			# FINAL VALIDATION: Double-check that we're not creating a lead with "Administrator"
+			if (lead.first_name and lead.first_name.lower() in ["administrator", "admin"]) or \
+			   (lead.last_name and lead.last_name.lower() in ["administrator", "admin"]):
+				# Log error and use fallback
+				frappe.log_error(
+					f"WARNING: Attempted to create lead with Administrator name. Email: {customer_email}, First: {lead.first_name}, Last: {lead.last_name}",
+					"Administrator Lead Prevention"
+				)
+				# Use email prefix or "Customer" as safe fallback
+				if customer_email and "@" in customer_email:
+					email_prefix = customer_email.split("@")[0]
+					if email_prefix and email_prefix.lower() not in ["administrator", "admin"]:
+						lead.first_name = email_prefix.title()
+						lead.last_name = ""
+					else:
+						lead.first_name = "Customer"
+						lead.last_name = ""
+				else:
+					lead.first_name = "Customer"
+					lead.last_name = ""
+			
+			lead.insert(ignore_permissions=True)
 		
 		# Copy selected communications
 		transferred_count = 0
