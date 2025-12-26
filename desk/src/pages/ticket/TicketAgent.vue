@@ -73,6 +73,11 @@
                 :key="`order-details-${ticketId}-${tabIndex}`"
                 :ticketId="ticketId"
               />
+              <TicketCallLogs
+                v-else-if="tab.name === 'calls'"
+                :key="`call-logs-${ticketId}-${tabIndex}`"
+                :ticketId="ticketId"
+              />
               <TicketAgentActivities
                 v-else
                 ref="ticketAgentActivitiesRef"
@@ -191,8 +196,10 @@ import {
   EmailIcon,
   IndicatorIcon,
   OrderDetailsIcon,
+  PhoneIcon,
 } from "@/components/icons";
 import { TicketAgentActivities, TicketAgentSidebar } from "@/components/ticket";
+import TicketCallLogs from "@/components/ticket/TicketCallLogs.vue";
 import TicketOrderDetails from "@/components/ticket/TicketOrderDetails.vue";
 import { setupCustomizations } from "@/composables/formCustomisation";
 import { useView } from "@/composables/useView";
@@ -342,6 +349,11 @@ const tabs: TabObject[] = [
     name: "comment",
     label: "Comments",
     icon: CommentIcon,
+  },
+  {
+    name: "calls",
+    label: "Calls",
+    icon: PhoneIcon,
   },
   {
     name: "order_details",

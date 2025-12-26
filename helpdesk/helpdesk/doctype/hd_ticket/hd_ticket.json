@@ -46,12 +46,14 @@
   "resolution_date",
   "resolution_time",
   "user_resolution_time",
-  "reference_tab",
-  "additional_info",
-  "contact",
-  "customer",
-  "email_account",
-  "column_break_16",
+ "reference_tab",
+ "additional_info",
+ "contact",
+ "contact_mobile",
+ "contact_email",
+ "customer",
+ "email_account",
+ "column_break_16",
   "via_customer_portal",
   "attachment",
   "content_type",
@@ -320,6 +322,18 @@
    "options": "Contact"
   },
   {
+   "fieldname": "contact_mobile",
+   "fieldtype": "Data",
+   "label": "Mobile No"
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Alternate Email Account",
+   "options": "Email",
+   "read_only": 1
+  },
+  {
    "fieldname": "customer",
    "fieldtype": "Link",
    "in_standard_filter": 1,
@@ -440,7 +454,7 @@
  "icon": "fa fa-issue",
  "idx": 61,
  "links": [],
- "modified": "2025-07-31 23:00:50.969299",
+ "modified": "2025-12-19 10:30:00.000000",
  "modified_by": "Administrator",
  "module": "Helpdesk",
  "name": "HD Ticket",
