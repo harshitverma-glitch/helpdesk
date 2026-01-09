@@ -1,0 +1,249 @@
+{
+ "actions": [],
+ "allow_import": 1,
+ "allow_rename": 1,
+ "autoname": "format:HCL-{YYYY}-{MM}-{#####}",
+ "creation": "2025-12-16 12:35:55.192441",
+ "description": "Log of phone calls related to helpdesk tickets",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "call_information_section",
+  "call_id",
+  "telephony_medium",
+  "type",
+  "column_break_4",
+  "from_number",
+  "duration",
+  "to_number",
+  "ticket_section",
+  "ticket",
+  "customer",
+  "column_break_12",
+  "caller_name",
+  "status",
+  "call_details_section",
+  "start_time",
+  "end_time",
+  "column_break_18",
+  "recording_url",
+  "ringcentral_recording_url",
+  "summary",
+  "transcript",
+  "system_information_section",
+  "created_by_user",
+  "source"
+ ],
+ "fields": [
+  {
+   "fieldname": "call_information_section",
+   "fieldtype": "Section Break",
+   "label": "Call Information"
+  },
+  {
+   "description": "Unique call identifier from telephony system",
+   "fieldname": "call_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "ID",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "default": "RingCentral",
+   "fieldname": "telephony_medium",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Telephony Medium",
+   "options": "\nRingCentral\nTwilio\nManual\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Type",
+   "options": "Incoming\nOutgoing",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Caller's phone number",
+   "fieldname": "from_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "From",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "description": "Call duration (e.g., 23s, 2m 15s)",
+   "fieldname": "duration",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Duration"
+  },
+  {
+   "description": "Number that was called",
+   "fieldname": "to_number",
+   "fieldtype": "Data",
+   "label": "To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ticket_section",
+   "fieldtype": "Section Break",
+   "label": "Ticket Information"
+  },
+  {
+   "description": "Related helpdesk ticket",
+   "fieldname": "ticket",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Ticket",
+   "options": "HD Ticket",
+   "search_index": 1
+  },
+  {
+   "description": "Customer associated with the call",
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "column_break_12",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Name of the person who made the call",
+   "fieldname": "caller_name",
+   "fieldtype": "Data",
+   "label": "Caller Name"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Initiated\nRinging\nIn Progress\nCompleted\nFailed\nBusy\nNo Answer\nQueued\nCanceled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "call_details_section",
+   "fieldtype": "Section Break",
+   "label": "Call Details"
+  },
+  {
+   "description": "When the call started",
+   "fieldname": "start_time",
+   "fieldtype": "Datetime",
+   "label": "Start Time"
+  },
+  {
+   "description": "When the call ended",
+   "fieldname": "end_time",
+   "fieldtype": "Datetime",
+   "label": "End Time"
+  },
+  {
+   "fieldname": "column_break_18",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Link to call recording if available",
+   "fieldname": "recording_url",
+   "fieldtype": "Data",
+   "label": "Recording URL"
+  },
+  {
+   "description": "Original RingCentral URL (preserved for transcript fetching)",
+   "fieldname": "ringcentral_recording_url",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "RingCentral Recording URL",
+   "read_only": 1
+  },
+  {
+   "description": "Summary of the call conversation",
+   "fieldname": "summary",
+   "fieldtype": "Text Editor",
+   "label": "Call Summary"
+  },
+  {
+   "description": "AI-generated transcript of the call",
+   "fieldname": "transcript",
+   "fieldtype": "Long Text",
+   "label": "Transcript"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "system_information_section",
+   "fieldtype": "Section Break",
+   "label": "System Information"
+  },
+  {
+   "fieldname": "created_by_user",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "default": "RingCentral Integration",
+   "description": "How this call log was created",
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "label": "Source",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-12-16 15:46:29.308438",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "Helpdesk Call Log",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Employee",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "from_number,to_number,caller_name,ticket",
+ "show_name_in_global_search": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "caller_name",
+ "track_changes": 1
+}

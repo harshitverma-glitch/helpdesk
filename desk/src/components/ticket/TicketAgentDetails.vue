@@ -9,6 +9,7 @@
         <div class="w-[126px] text-sm text-gray-600">{{ s.label }}</div>
       </Tooltip>
       <div class="flex items-center justify-between">
+        <!-- Regular fields -->
         <div v-if="s.value">{{ s.value }}</div>
         <Tooltip :text="s.tooltipValue">
           <Badge
@@ -32,7 +33,7 @@ import {
   formatTime,
   getTimeInSeconds,
 } from "@/utils";
-import { Badge, Tooltip } from "frappe-ui";
+import { Badge, Tooltip, createResource, call, createToast } from "frappe-ui";
 import { computed, onUnmounted, ref, watch } from "vue";
 
 const props = defineProps({

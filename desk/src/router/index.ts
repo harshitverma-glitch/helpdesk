@@ -82,6 +82,11 @@ const routes = [
     component: () => import("@/pages/desk/contact/Contacts.vue"),
   },
   {
+    path: "/call-logs",
+    name: "CallLogs",
+    component: () => import("@/pages/desk/calllog/CallLogs.vue"),
+  },
+  {
     path: "/agents",
     name: "AgentList",
     redirect: "/tickets",

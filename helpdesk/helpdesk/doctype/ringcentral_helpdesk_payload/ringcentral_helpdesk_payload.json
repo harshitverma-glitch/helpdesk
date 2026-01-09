@@ -1,0 +1,193 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:RHP-{YYYY}-{MM}-{#####}",
+ "creation": "2025-12-17 11:36:33.402959",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "call_identification_section",
+  "session_id",
+  "uuid",
+  "caller_number",
+  "called_number",
+  "column_break_5",
+  "caller_name",
+  "call_direction",
+  "extension_id",
+  "payload_section",
+  "raw_payload",
+  "processing_section",
+  "processed",
+  "processing_status",
+  "column_break_processing",
+  "processed_at",
+  "processing_notes",
+  "error_message",
+  "generated_records_section",
+  "contact_created",
+  "helpdesk_call_log_created",
+  "ticket_created"
+ ],
+ "fields": [
+  {
+   "fieldname": "call_identification_section",
+   "fieldtype": "Section Break",
+   "label": "Call Identification"
+  },
+  {
+   "fieldname": "session_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Session ID",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "uuid",
+   "fieldtype": "Data",
+   "label": "UUID",
+   "unique": 1
+  },
+  {
+   "fieldname": "caller_number",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Caller Number",
+   "search_index": 1
+  },
+  {
+   "fieldname": "called_number",
+   "fieldtype": "Data",
+   "label": "Called Number"
+  },
+  {
+   "fieldname": "column_break_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "caller_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Caller Name"
+  },
+  {
+   "fieldname": "call_direction",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Direction",
+   "options": "\nInbound\nOutbound"
+  },
+  {
+   "fieldname": "extension_id",
+   "fieldtype": "Data",
+   "label": "Extension ID"
+  },
+  {
+   "fieldname": "payload_section",
+   "fieldtype": "Section Break",
+   "label": "Payload Data"
+  },
+  {
+   "description": "Complete RingCentral webhook payload",
+   "fieldname": "raw_payload",
+   "fieldtype": "JSON",
+   "label": "Raw Payload",
+   "reqd": 1
+  },
+  {
+   "fieldname": "processing_section",
+   "fieldtype": "Section Break",
+   "label": "Processing Status"
+  },
+  {
+   "default": "0",
+   "fieldname": "processed",
+   "fieldtype": "Check",
+   "label": "Processed"
+  },
+  {
+   "default": "Pending",
+   "fieldname": "processing_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Processing Status",
+   "options": "\nPending\nProcessed\nError\nSkipped",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_processing",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "processed_at",
+   "fieldtype": "Datetime",
+   "label": "Processed At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "processing_notes",
+   "fieldtype": "Text",
+   "label": "Processing Notes"
+  },
+  {
+   "fieldname": "error_message",
+   "fieldtype": "Text",
+   "label": "Error Message"
+  },
+  {
+   "fieldname": "generated_records_section",
+   "fieldtype": "Section Break",
+   "label": "Generated Records"
+  },
+  {
+   "fieldname": "contact_created",
+   "fieldtype": "Link",
+   "label": "Contact Created",
+   "options": "Contact"
+  },
+  {
+   "fieldname": "helpdesk_call_log_created",
+   "fieldtype": "Link",
+   "label": "Helpdesk Call Log Created",
+   "options": "Helpdesk Call Log"
+  },
+  {
+   "fieldname": "ticket_created",
+   "fieldtype": "Link",
+   "label": "Ticket Created",
+   "options": "HD Ticket"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-12-17 11:36:33.402959",
+ "modified_by": "Administrator",
+ "module": "Helpdesk",
+ "name": "RingCentral Helpdesk Payload",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "search_fields": "caller_number,called_number,session_id",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "caller_name"
+}

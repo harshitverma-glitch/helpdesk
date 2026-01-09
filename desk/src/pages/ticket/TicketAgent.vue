@@ -73,6 +73,11 @@
                 :key="`order-details-${ticketId}-${tabIndex}`"
                 :ticketId="ticketId"
               />
+              <TicketCallLogs
+                v-else-if="tab.name === 'calls'"
+                :key="`call-logs-${ticketId}-${tabIndex}`"
+                :ticketId="ticketId"
+              />
               <TicketAgentActivities
                 v-else
                 ref="ticketAgentActivitiesRef"
@@ -191,8 +196,10 @@ import {
   EmailIcon,
   IndicatorIcon,
   OrderDetailsIcon,
+  PhoneIcon,
 } from "@/components/icons";
 import { TicketAgentActivities, TicketAgentSidebar } from "@/components/ticket";
+import TicketCallLogs from "@/components/ticket/TicketCallLogs.vue";
 import TicketOrderDetails from "@/components/ticket/TicketOrderDetails.vue";
 import { setupCustomizations } from "@/composables/formCustomisation";
 import { useView } from "@/composables/useView";
@@ -344,6 +351,11 @@ const tabs: TabObject[] = [
     icon: CommentIcon,
   },
   {
+    name: "calls",
+    label: "Calls",
+    icon: PhoneIcon,
+  },
+  {
     name: "order_details",
     label: "Order Details",
     icon: OrderDetailsIcon,
@@ -473,11 +485,13 @@ function updateOptimistic(fieldname: string, value: string) {
 async function openTransferDialog() {
   if (!ticket.data) return;
   
+  console.log('[TicketAgent] Opening transfer dialog for ticket:', props.ticketId);
   isLoadingEmails.value = true;
   showTransferDialog.value = true;
   
   try {
     transferEmails.value = await getCommunicationsForTransfer("HD Ticket", props.ticketId);
+    console.log('[TicketAgent] Loaded emails for transfer:', transferEmails.value.length, transferEmails.value);
   } catch (error) {
     console.error("Error fetching communications:", error);
     toast.error("Error loading emails");
@@ -488,10 +502,23 @@ async function openTransferDialog() {
 }
 
 async function handleTransfer(selectedEmailIds: string[]) {
-  if (!ticket.data || !selectedEmailIds || selectedEmailIds.length === 0) return;
+  console.log('[TicketAgent] handleTransfer called with:', selectedEmailIds);
+  console.log('[TicketAgent] Number of selected emails:', selectedEmailIds?.length || 0);
+  
+  if (!ticket.data) {
+    console.warn('[TicketAgent] No ticket data!');
+    return;
+  }
+  
+  if (!selectedEmailIds || selectedEmailIds.length === 0) {
+    console.warn('[TicketAgent] No emails selected - blocking transfer!');
+    console.warn('[TicketAgent] Available emails were:', transferEmails.value);
+    return;
+  }
   
   try {
     const result = await transferToCRM(props.ticketId, selectedEmailIds, true);
+    console.log('[TicketAgent] Transfer successful:', result);
     
     if (result.success) {
       showTransferDialog.value = false;

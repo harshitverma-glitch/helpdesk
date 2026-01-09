@@ -63,17 +63,71 @@ class HDTicket(Document):
 
         self.set_contact()
         self.set_customer()
-
-    def validate(self):
-        self.validate_feedback()
-        self.validate_ticket_type()
-
+        
     def before_save(self):
+        self.handle_phone_number_update()
         self.apply_sla()
         if not self.is_new():
             self.handle_ticket_activity_update()
 
         self.handle_email_feedback()
+    
+    def db_set(self, key, value=None, *args, **kwargs):
+        """
+        Override db_set to intercept direct field updates (used by frappe.client.set_value)
+        and ensure Contact is updated when contact_mobile is changed
+        """
+        # If updating contact_mobile, update Contact first
+        if key == "contact_mobile" or (isinstance(key, dict) and "contact_mobile" in key):
+            # Extract the new mobile value
+            new_mobile = value if isinstance(key, str) else key.get("contact_mobile")
+            
+            if new_mobile and self.contact:
+                try:
+                    # Update Contact's mobile_no
+                    frappe.db.set_value("Contact", self.contact, {
+                        "mobile_no": new_mobile,
+                        "phone": new_mobile
+                    }, update_modified=False)
+                    frappe.db.commit()
+                    frappe.logger().info(f"✅ [db_set] Updated Contact {self.contact} mobile_no to {new_mobile}")
+                except Exception as e:
+                    frappe.log_error(
+                        title=f"Failed to update Contact {self.contact} in db_set",
+                        message=str(e)
+                    )
+            elif new_mobile and not self.contact:
+                # Create a contact if none exists
+                try:
+                    contact_name = self.raised_by.split("@")[0] if self.raised_by else "Unknown"
+                    new_contact = frappe.get_doc({
+                        "doctype": "Contact",
+                        "first_name": contact_name,
+                        "full_name": contact_name,
+                        "mobile_no": new_mobile,
+                        "phone": new_mobile,
+                        "email_id": self.raised_by,
+                    })
+                    new_contact.insert(ignore_permissions=True)
+                    
+                    # Link the new contact
+                    self.contact = new_contact.name
+                    frappe.db.set_value("HD Ticket", self.name, "contact", new_contact.name, update_modified=False)
+                    
+                    frappe.db.commit()
+                    frappe.logger().info(f"✅ [db_set] Created Contact {new_contact.name} with mobile_no {new_mobile}")
+                except Exception as e:
+                    frappe.log_error(
+                        title=f"Failed to create Contact in db_set",
+                        message=str(e)
+                    )
+        
+        # Call the parent db_set method
+        return super().db_set(key, value, *args, **kwargs)
+
+    def validate(self):
+        self.validate_feedback()
+        self.validate_ticket_type()
 
     def handle_email_feedback(self):
 
@@ -214,6 +268,109 @@ class HDTicket(Document):
             # let agent assign the customer when one contact has more than one customer
             if len(customer) == 1:
                 self.customer = customer[0]
+
+    def handle_phone_number_update(self):
+        """
+        When contact_mobile is updated:
+        1. Sync to Contact document
+        2. Merge call logs from other tickets with same phone number
+        """
+        if not self.contact_mobile:
+            return
+            
+        # Check if it actually changed
+        if not self.is_new():
+            old_mobile = frappe.db.get_value("HD Ticket", self.name, "contact_mobile")
+            if old_mobile == self.contact_mobile:
+                return
+        
+        # Sync mobile number to Contact
+        self._sync_mobile_to_contact()
+        
+        # Merge call logs from other tickets with same phone number
+        self._merge_call_logs()
+    
+    def _sync_mobile_to_contact(self):
+        """Update or create Contact with the mobile number"""
+        if self.contact:
+            try:
+                frappe.db.set_value("Contact", self.contact, {
+                    "mobile_no": self.contact_mobile,
+                    "phone": self.contact_mobile
+                }, update_modified=False)
+                frappe.db.commit()
+            except Exception as e:
+                frappe.log_error(
+                    title=f"Failed to update Contact {self.contact} mobile number",
+                    message=str(e)
+                )
+        else:
+            # Create a contact if none exists
+            try:
+                contact_name = self.raised_by.split("@")[0] if self.raised_by else "Unknown"
+                new_contact = frappe.get_doc({
+                    "doctype": "Contact",
+                    "first_name": contact_name,
+                    "full_name": contact_name,
+                    "mobile_no": self.contact_mobile,
+                    "phone": self.contact_mobile,
+                    "email_id": self.raised_by,
+                })
+                new_contact.insert(ignore_permissions=True)
+                self.contact = new_contact.name
+                frappe.db.commit()
+            except Exception as e:
+                frappe.log_error(
+                    title=f"Failed to create Contact for ticket {self.name}",
+                    message=str(e)
+                )
+    
+    def _merge_call_logs(self):
+        """Transfer call logs from other tickets with same phone number"""
+        from helpdesk.integrations.ringcentral_utils import normalize_phone_number
+        
+        normalized_phone = normalize_phone_number(self.contact_mobile)
+        if not normalized_phone:
+            return
+        
+        # Find other tickets with the same phone number
+        other_tickets = frappe.get_all(
+            "HD Ticket",
+            filters={
+                "name": ["!=", self.name],
+                "contact_mobile": ["like", f"%{normalized_phone}%"]
+            },
+            fields=["name"]
+        )
+        
+        if not other_tickets:
+            return
+        
+        # Get call logs from those tickets
+        call_logs = frappe.get_all(
+            "Helpdesk Call Log",
+            filters={"ticket": ["in", [t.name for t in other_tickets]]},
+            fields=["name"]
+        )
+        
+        # Transfer call logs to this ticket
+        for call_log in call_logs:
+            try:
+                frappe.db.set_value(
+                    "Helpdesk Call Log",
+                    call_log.name,
+                    "ticket",
+                    self.name,
+                    update_modified=False
+                )
+            except Exception as e:
+                frappe.log_error(
+                    title=f"Failed to transfer call log {call_log.name}",
+                    message=str(e)
+                )
+        
+        if call_logs:
+            frappe.db.commit()
 
     def set_priority(self):
         if self.priority:
